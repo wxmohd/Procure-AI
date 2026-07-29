@@ -16,6 +16,10 @@ Rows: 346,018 | Collection: `procureiq.purchase_orders`
 | `acquisition_type` | string | only 5 values (e.g. "IT Goods") — good categorical filter |
 | `item_name` / `item_description` | string | free text, high cardinality — needed for "most frequently ordered line items" |
 | `quantity`, `unit_price`, `total_price` | float | core spend calculations |
-| `commodity_title`, `class_title`, `family_title`, `segment_title` | string | UNSPSC classification hierarchy — segment is broadest category (56 values), useful for high-level "spending by category" |
-| `location` | string | **DATA QUALITY ISSUE**: some values contain embedded coordinates mixed with zip code (e.g. `"95841\n(38.662263, -121.346136)"`). Needs cleaning before reliable use — do not expose to the LLM as-is; either strip coordinates or split into `zip` + `lat/lng` fields at load time. |
+| `acquisition_method` | string | procurement method (e.g. "NCB", "Contract") |
+| `purchase_order_type` | string | PO classification |
+
+## Dropped columns (not loaded to MongoDB)
+
+`lpa_number`, `sub_acquisition_type`, `sub_acquisition_method`, `calcard`, `item_commodity_code`, `normalized_unspsc`, `commodity_title`, `class`, `class_title`, `family`, `family_title`, `segment`, `segment_title`, `location`, `supplier_qualifications` — removed to stay within Atlas M0 storage limit.
 

@@ -43,6 +43,32 @@ def load_csv(path: str) -> pd.DataFrame:
     return df
 
 
+DROP_COLUMNS = {
+    "lpa_number",
+    "sub_acquisition_type",
+    "sub_acquisition_method",
+    "calcard",
+    "item_commodity_code",
+    "normalized_unspsc",
+    "commodity_title",
+    "class",
+    "class_title",
+    "family",
+    "family_title",
+    "segment",
+    "segment_title",
+    "location",
+    "supplier_qualifications",
+}
+
+
+def trim_columns(df: pd.DataFrame) -> pd.DataFrame:
+    to_drop = [c for c in df.columns if c in DROP_COLUMNS]
+    df = df.drop(columns=to_drop)
+    print(f"Kept {len(df.columns)} columns after trimming: {list(df.columns)}")
+    return df
+
+
 def coerce_types(df: pd.DataFrame) -> pd.DataFrame:
     """Best-effort type coercion so Mongo stores usable types, not just strings."""
     for col in df.columns:
@@ -115,6 +141,7 @@ def load_to_mongo(df: pd.DataFrame):
 
 def main():
     df = load_csv(CSV_PATH)
+    df = trim_columns(df)
     df = coerce_types(df)
     print_schema_summary(df)
     load_to_mongo(df)

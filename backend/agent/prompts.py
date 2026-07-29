@@ -14,13 +14,12 @@ Fields:
 - quantity (float)
 - unit_price (float)
 - total_price (float): quantity * unit_price, use this for spend calculations
-- commodity_title (string): specific commodity, e.g. "Jalapeno peppers"
-- class_title (string): mid-level category, e.g. "Peppers"
-- family_title (string): broader category, e.g. "Fresh vegetables"
-- segment_title (string): broadest category, e.g. "Food Beverage and Tobacco Products"
+- acquisition_method (string): procurement method, e.g. "NCB", "Contract"
+- purchase_order_type (string): PO classification
+- supplier_code (string): numeric supplier identifier
+- unit_of_measure (string): unit for quantity
 
 Known issues:
-- location/supplier_zip_code fields are unreliable (malformed data) — avoid using them unless explicitly asked
 - supplier_name has no deduplication — spelling variants exist
 """
 
