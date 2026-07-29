@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.pyc
+backend/data/raw/
+__pycache__/
