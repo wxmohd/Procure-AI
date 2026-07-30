@@ -12,8 +12,13 @@ const PALETTE = [
 
 function toLabel(val: unknown): string {
   if (val === null || val === undefined) return 'N/A'
-  if (typeof val === 'object') return Object.values(val as Record<string, unknown>).join(' · ')
-  return String(val)
+  if (typeof val === 'object') {
+    const vals = Object.values(val as Record<string, unknown>)
+    const joined = vals.join(' · ')
+    return joined.length > 30 ? joined.slice(0, 28) + '...' : joined
+  }
+  const str = String(val)
+  return str.length > 30 ? str.slice(0, 28) + '...' : str
 }
 
 function fmt(val: number, currency: boolean): string {
@@ -51,21 +56,22 @@ export default function ResultChart({ results }: Props) {
         </span>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 48 }}>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 52 }}>
           <XAxis
             dataKey="label"
-            tick={{ fill: '#64748b', fontSize: 10 }}
-            angle={-38}
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            angle={-35}
             textAnchor="end"
             interval={0}
             axisLine={false}
             tickLine={false}
+            height={60}
           />
           <YAxis
-            tick={{ fill: '#64748b', fontSize: 10 }}
+            tick={{ fill: '#64748b', fontSize: 11 }}
             tickFormatter={(v: number) => fmt(v, isCurrency)}
-            width={56}
+            width={70}
             axisLine={false}
             tickLine={false}
           />
@@ -74,14 +80,14 @@ export default function ResultChart({ results }: Props) {
               background: 'rgba(6,13,26,0.95)',
               border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: 12,
-              fontSize: 12,
+              fontSize: 13,
               boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
             }}
             labelStyle={{ color: '#e2e8f0', marginBottom: 4, fontWeight: 600 }}
             itemStyle={{ color: '#93c5fd' }}
             formatter={(val: number) => [fmt(val, isCurrency), label]}
           />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={48} isAnimationActive>
+          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive>
             {data.map((_, i) => (
               <Cell key={i} fill={PALETTE[i % PALETTE.length]} fillOpacity={0.9} />
             ))}
