@@ -1,8 +1,13 @@
 import uuid
+import traceback
+import logging
 from fastapi import APIRouter, HTTPException
 from langchain_core.messages import HumanMessage, AIMessage
 from api.schemas import ChatRequest, ChatResponse
 from agent.graph import agent_graph
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,6 +30,8 @@ async def chat(request: ChatRequest):
             "error": None,
         })
     except Exception as e:
+        logger.error(f"Agent error for query: {request.query[:100]}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
     answer = result.get("final_answer", "")

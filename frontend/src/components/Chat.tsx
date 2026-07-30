@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type Form
 import { v4 as uuidv4 } from 'uuid'
 import { ArrowUp, DollarSign, Building2, Package, BarChart3, Sparkles } from 'lucide-react'
 import MessageBubble from './MessageBubble'
+import FollowUpChips from './FollowUpChips'
 import { Message } from '../types/chat'
 import { sendMessage } from '../services/chatService'
 
@@ -119,8 +120,18 @@ export default function Chat() {
         )}
 
         <div className="space-y-5">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} onFollowUp={handleSend} />
+          {messages.map((msg, index) => (
+            <div key={msg.id}>
+              <MessageBubble message={msg} onFollowUp={handleSend} />
+              {index === messages.length - 1 && msg.role === 'assistant' && !loading && (
+                <div className="mt-4">
+                  <FollowUpChips
+                    suggestions={SUGGESTIONS.map(s => s.query)}
+                    onSelect={handleSend}
+                  />
+                </div>
+              )}
+            </div>
           ))}
         </div>
 

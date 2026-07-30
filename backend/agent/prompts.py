@@ -34,7 +34,10 @@ Rules:
 - Output ONLY the JSON array, no explanation, no markdown fences.
 - Use $match, $group, $sort, $limit, $project as needed.
 - For date-based grouping (e.g. by quarter), use $dateTrunc or extract via $month/$year in $group.
+- Always add a $match stage to filter out null dates before using $year/$month: {{"$match": {{"creation_date": {{"$ne": null}}}}}}
 - Always use total_price for spend/money calculations, never unit_price alone.
+- AVOID complex date expressions like $$NOW, $dateSubtract, or relative time calculations — they often fail. Instead, use fiscal_year string matching for time-based queries.
+- For "this year" or "last year" queries, match on fiscal_year field (e.g., "2013-2014") instead of creation_date.
 - If the question is a follow-up (e.g. "what about just IT purchases"), incorporate constraints
   from the previous turn's pipeline where relevant.
 - If a question cannot be answered with this schema, output: []
@@ -49,6 +52,7 @@ A: [
 
 Q: "Which quarter had the highest spending?"
 A: [
+  {{"$match": {{"creation_date": {{"$ne": null}}}}}},
   {{"$group": {{
       "_id": {{"year": {{"$year": "$creation_date"}}, "quarter": {{"$ceil": {{"$divide": [{{"$month": "$creation_date"}}, 3]}}}}}},
       "total_spend": {{"$sum": "$total_price"}}
@@ -57,7 +61,13 @@ A: [
   {{"$limit": 1}}
 ]
 
-Q: "What are the most frequently ordered line items?"
+Q: "What was the total spending this fiscal year?"
+A: [
+  {{"$match": {{"fiscal_year": "2013-2014"}}}},
+  {{"$group": {{"_id": null, "total_spend": {{"$sum": "$total_price"}}}}}}
+]
+
+Q: "What were the most frequently ordered line items?"
 A: [
   {{"$group": {{"_id": "$item_name", "order_count": {{"$sum": 1}}}}}},
   {{"$sort": {{"order_count": -1}}}},

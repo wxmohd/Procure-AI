@@ -59,12 +59,23 @@ DROP_COLUMNS = {
     "segment_title",
     "location",
     "supplier_qualifications",
+    "requisition_number",
+    "supplier_zip_code",
+    "supplier_code",
+    "classification_codes",
+    "purchase_date",
 }
+
+
+TEXT_TRUNCATE = {"item_description": 120, "item_name": 80}
 
 
 def trim_columns(df: pd.DataFrame) -> pd.DataFrame:
     to_drop = [c for c in df.columns if c in DROP_COLUMNS]
     df = df.drop(columns=to_drop)
+    for col, limit in TEXT_TRUNCATE.items():
+        if col in df.columns:
+            df[col] = df[col].astype(str).str[:limit]
     print(f"Kept {len(df.columns)} columns after trimming: {list(df.columns)}")
     return df
 
