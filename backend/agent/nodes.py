@@ -64,7 +64,7 @@ def formulate_response_node(state: AgentState) -> AgentState:
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=500,
+        max_tokens=1200,
         messages=[{"role": "user", "content": prompt}],
     )
 

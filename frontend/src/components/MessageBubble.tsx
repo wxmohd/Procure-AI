@@ -13,8 +13,14 @@ function parseBold(text: string): string {
   return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
 }
 
+function parseEmojis(text: string): string {
+  return text.replace(/([\u{1F300}-\u{1F9FF}])/gu, '<span class="text-lg">$1</span>')
+}
+
 function parseHeaders(text: string): string {
-  return text.replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-slate-200 mt-4 mb-2">$1</h2>')
+  return text
+    .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold text-slate-300 mt-3 mb-2">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-slate-200 mt-4 mb-2">$1</h2>')
 }
 
 function parseTables(text: string): string {
@@ -115,7 +121,7 @@ export default function MessageBubble({ message, onFollowUp }: Props) {
         <div
           className="rounded-2xl rounded-tl-sm px-4 py-3.5 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap"
           style={{ background: 'rgba(15,31,53,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}
-          dangerouslySetInnerHTML={{ __html: parseHeaders(parseTables(parseBold(message.content))) }}
+          dangerouslySetInnerHTML={{ __html: parseHeaders(parseTables(parseEmojis(parseBold(message.content)))) }}
         />
 
         {message.results && message.results.length > 0 && (
