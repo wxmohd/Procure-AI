@@ -5,7 +5,10 @@ Fields:
 - creation_date (datetime): PO creation date — the only reliable date field, use this for all date/time filtering and grouping
 - fiscal_year (string): e.g. "2013-2014"
 - purchase_order_number (string): unique PO id
-- department_name (string): 111 distinct departments
+- department_name (string): 111 distinct departments. IMPORTANT naming convention — names are
+  INVERTED, e.g. "Health Care Services, Department of" (not "Department of Health Care Services"),
+  "Public Health, Department of", "Aging, Department of". Never assume a user's natural phrasing
+  matches the stored format — see the matching rule below.
 - supplier_name (string): supplier/vendor name
 - acquisition_type (string): exactly 5 values, use this exact casing — "IT Goods", "IT Services",
   "IT Telecommunications", "NON-IT Goods", "NON-IT Services"
@@ -47,10 +50,32 @@ Rules:
   do NOT use fiscal_year at all — fiscal years don't align with calendar years. Instead match on
   creation_date directly using $expr with $year/$month equality, e.g.
   {{"$expr": {{"$eq": [{{"$year": "$creation_date"}}, 2014]}}}}.
-- If the question is a follow-up (e.g. "what about just IT purchases"), incorporate constraints
-  from the previous turn's pipeline where relevant.
+- Only treat a question as a follow-up — and inherit constraints (department, fiscal year, acquisition
+  type, etc.) from the previous turn's pipeline — when it is linguistically INCOMPLETE on its own and
+  clearly references prior context: "what about just IT purchases", "break that down by department",
+  "and for 2013-2014?". If the question is fully self-contained and names its own scope (e.g. "Which 5
+  departments had the highest total spending?", "What is the total spend on IT Goods?"), treat it as a
+  brand new independent question and build the pipeline from scratch — do NOT carry over filters from
+  earlier turns just because the topic is similar. When in doubt, prefer the standalone reading: an
+  unscoped "which departments..." question means ALL departments, not whichever department was
+  discussed last.
 - If the message is a greeting, small talk, a question about your own capabilities, or anything
   that cannot be answered from this schema, output exactly: []
+- NEVER use exact string equality to filter department_name against a name taken from the user's
+  question — their phrasing will rarely match the stored inverted format exactly. Instead,
+  reconstruct the likely full stored name by inverting the phrase (e.g. "Department of Health Care
+  Services" -> "Health Care Services, Department of") and match it with an ANCHORED, case-insensitive
+  $regex covering the WHOLE field value: {{"$regex": "^Health Care Services, Department of$", "$options": "i"}}.
+  Anchoring with ^ and $ matters — an unanchored substring like "Health Care Services" also matches
+  the unrelated "Correctional Health Care Services" department and silently merges two departments'
+  spending together. Only fall back to an unanchored substring match if the user's phrasing is
+  clearly partial/fuzzy (e.g. just "health care" with no more specific words).
+- supplier_name has spelling variants (see Known issues) and no reliable inversion pattern, so use an
+  unanchored case-insensitive $regex on the most distinctive part of the name the user gave.
+- A question with multiple parts (e.g. a spending trend AND a category breakdown) is still answerable
+  in ONE pipeline — nest a second $group stage, or use $push to collect a breakdown array per group,
+  rather than declining or asking the user to narrow the question. Prefer attempting a reasonable
+  pipeline over outputting [] whenever the schema plausibly supports an answer.
 
 Examples:
 
@@ -97,6 +122,16 @@ A: [
   {{"$group": {{"_id": "$department_name", "total_spend": {{"$sum": "$total_price"}}}}}},
   {{"$sort": {{"total_spend": -1}}}},
   {{"$limit": 10}}
+]
+
+Q: "How did the Department of Health Care Services' spending trend across fiscal years, by acquisition type?"
+A: [
+  {{"$match": {{"department_name": {{"$regex": "^Health Care Services, Department of$", "$options": "i"}}}}}},
+  {{"$group": {{
+      "_id": {{"fiscal_year": "$fiscal_year", "acquisition_type": "$acquisition_type"}},
+      "total_spend": {{"$sum": "$total_price"}}
+  }}}},
+  {{"$sort": {{"_id.fiscal_year": 1}}}}
 ]
 """
 
