@@ -2,13 +2,13 @@ SCHEMA_DESCRIPTION = """
 Collection: purchase_orders (California State procurement data)
 
 Fields:
-- creation_date (datetime): PO creation date
-- purchase_date (datetime): actual purchase date, ~5% null
+- creation_date (datetime): PO creation date — the only reliable date field, use this for all date/time filtering and grouping
 - fiscal_year (string): e.g. "2013-2014"
 - purchase_order_number (string): unique PO id
 - department_name (string): 111 distinct departments
 - supplier_name (string): supplier/vendor name
-- acquisition_type (string): e.g. "IT Goods", "Non-IT Goods", "IT Services" (5 values total)
+- acquisition_type (string): exactly 5 values, use this exact casing — "IT Goods", "IT Services",
+  "IT Telecommunications", "NON-IT Goods", "NON-IT Services"
 - item_name (string): short item name
 - item_description (string): longer item description
 - quantity (float)
@@ -16,8 +16,10 @@ Fields:
 - total_price (float): quantity * unit_price, use this for spend calculations
 - acquisition_method (string): procurement method, e.g. "NCB", "Contract"
 - purchase_order_type (string): PO classification
-- supplier_code (string): numeric supplier identifier
 - unit_of_measure (string): unit for quantity
+
+Fields NOT in this collection (do not reference them): purchase_date, supplier_code,
+supplier_zip_code, requisition_number, classification_codes — these were dropped at load time.
 
 Known issues:
 - supplier_name has no deduplication — spelling variants exist
@@ -36,11 +38,19 @@ Rules:
 - For date-based grouping (e.g. by quarter), use $dateTrunc or extract via $month/$year in $group.
 - Always add a $match stage to filter out null dates before using $year/$month: {{"$match": {{"creation_date": {{"$ne": null}}}}}}
 - Always use total_price for spend/money calculations, never unit_price alone.
-- AVOID complex date expressions like $$NOW, $dateSubtract, or relative time calculations — they often fail. Instead, use fiscal_year string matching for time-based queries.
-- For "this year" or "last year" queries, match on fiscal_year field (e.g., "2013-2014") instead of creation_date.
+- AVOID complex date expressions like $$NOW, $dateSubtract, or relative time calculations — they often fail.
+- For "this fiscal year" / "last fiscal year" / a named fiscal year (e.g. "FY2013-2014"), match the
+  fiscal_year field with EXACT string equality, e.g. {{"fiscal_year": "2013-2014"}}. Never use $regex
+  or substring matching on fiscal_year — fiscal years overlap by substring (e.g. "2013-2014" and
+  "2014-2015" both contain "2014"), so a regex match silently doubles up two different fiscal years.
+- For a specific CALENDAR year or month (e.g. "in 2014", "in March 2014", "each month in 2014"),
+  do NOT use fiscal_year at all — fiscal years don't align with calendar years. Instead match on
+  creation_date directly using $expr with $year/$month equality, e.g.
+  {{"$expr": {{"$eq": [{{"$year": "$creation_date"}}, 2014]}}}}.
 - If the question is a follow-up (e.g. "what about just IT purchases"), incorporate constraints
   from the previous turn's pipeline where relevant.
-- If a question cannot be answered with this schema, output: []
+- If the message is a greeting, small talk, a question about your own capabilities, or anything
+  that cannot be answered from this schema, output exactly: []
 
 Examples:
 
@@ -74,6 +84,14 @@ A: [
   {{"$limit": 10}}
 ]
 
+Q: "How many purchase orders were created each month in 2014?"
+A: [
+  {{"$match": {{"creation_date": {{"$ne": null}}}}}},
+  {{"$match": {{"$expr": {{"$eq": [{{"$year": "$creation_date"}}, 2014]}}}}}},
+  {{"$group": {{"_id": {{"$month": "$creation_date"}}, "po_count": {{"$sum": 1}}}}}},
+  {{"$sort": {{"_id": 1}}}}
+]
+
 Q: "Break that down by department" (follow-up to a spend question)
 A: [
   {{"$group": {{"_id": "$department_name", "total_spend": {{"$sum": "$total_price"}}}}}},
@@ -104,4 +122,34 @@ Example format for rankings:
 
 Question: {question}
 Results: {results}
+"""
+
+CONVERSATIONAL_PROMPT = """You are ProcureAI, a friendly and knowledgeable procurement data assistant.
+You have access to 346,018 California State purchase order records spanning fiscal years 2012-13 onward,
+covering departments, suppliers, acquisition types, item names, quantities and total prices.
+
+The user's message is not a data question, so answer it naturally and conversationally.
+
+Guidelines:
+- Be warm, human and concise. Never say "I don't know" or refuse without offering something useful.
+- If they greet you or make small talk, respond in kind, then briefly invite a procurement question.
+- If they ask what you can do, explain your capabilities with 2-3 concrete example questions.
+- If they ask something off-topic, answer helpfully in one or two sentences, then steer back to procurement.
+- Use markdown (bold, headers, bullets) and the occasional emoji where it adds clarity.
+- Never mention MongoDB, pipelines, aggregations or databases.
+
+Conversation so far:
+{history}
+
+User: {question}
+"""
+
+FOLLOW_UP_PROMPT = """Given this procurement question: "{question}"
+And a preview of the data that answered it: {results}
+
+Generate exactly 3 short, specific follow-up questions a procurement analyst would naturally ask next.
+Each must be answerable from purchase order data (departments, suppliers, items, acquisition types,
+fiscal years, quantities, total prices).
+
+Output only a JSON array of 3 strings. No explanation, no markdown fences.
 """

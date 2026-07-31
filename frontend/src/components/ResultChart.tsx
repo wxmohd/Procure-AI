@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts'
 
 interface Props {
   results: Record<string, unknown>[]
@@ -47,17 +47,36 @@ export default function ResultChart({ results }: Props) {
 
   const label = numericKey.replace(/_/g, ' ')
 
+  const top = data.reduce((a, b) => (b.value > a.value ? b : a), data[0])
+
   return (
-    <div className="rounded-2xl p-5" style={{ background: 'rgba(15,31,53,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
+    <div
+      className="pop-in rounded-2xl p-5"
+      style={{ background: 'rgba(15,25,45,0.75)', border: '1px solid rgba(255,255,255,0.08)' }}
+    >
       <div className="flex items-center justify-between mb-5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider capitalize">{label}</p>
-        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
-          {data.length} results
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium truncate max-w-[160px]" style={{ background: 'rgba(52,211,153,0.15)', color: '#6ee7b7' }}>
+            top &middot; {top.label}
+          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
+            {data.length} results
+          </span>
+        </div>
       </div>
 
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 52 }}>
+          <defs>
+            {PALETTE.map((color, i) => (
+              <linearGradient key={color} id={`barGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.95} />
+                <stop offset="100%" stopColor={color} stopOpacity={0.45} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
           <XAxis
             dataKey="label"
             tick={{ fill: '#64748b', fontSize: 11 }}
@@ -76,6 +95,7 @@ export default function ResultChart({ results }: Props) {
             tickLine={false}
           />
           <Tooltip
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
             contentStyle={{
               background: 'rgba(6,13,26,0.95)',
               border: '1px solid rgba(255,255,255,0.1)',
@@ -87,9 +107,9 @@ export default function ResultChart({ results }: Props) {
             itemStyle={{ color: '#93c5fd' }}
             formatter={(val: number) => [fmt(val, isCurrency), label]}
           />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive>
+          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive animationDuration={700} animationEasing="ease-out">
             {data.map((_, i) => (
-              <Cell key={i} fill={PALETTE[i % PALETTE.length]} fillOpacity={0.9} />
+              <Cell key={i} fill={`url(#barGrad${i % PALETTE.length})`} stroke={PALETTE[i % PALETTE.length]} strokeOpacity={0.4} />
             ))}
           </Bar>
         </BarChart>

@@ -1,4 +1,5 @@
 import { Sparkles } from 'lucide-react'
+import type { RefObject } from 'react'
 import { Message } from '../types/chat'
 import QueryInspector from './QueryInspector'
 import ResultChart from './ResultChart'
@@ -7,6 +8,8 @@ import FollowUpChips from './FollowUpChips'
 interface Props {
   message: Message
   onFollowUp: (query: string) => void
+  isStreaming?: boolean
+  textEndRef?: RefObject<HTMLDivElement>
 }
 
 function parseBold(text: string): string {
@@ -21,6 +24,48 @@ function parseHeaders(text: string): string {
   return text
     .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold text-slate-300 mt-3 mb-2">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-slate-200 mt-4 mb-2">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-slate-100 mt-4 mb-2.5">$1</h1>')
+}
+
+function parseLists(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let items: string[] = []
+  let ordered = false
+
+  const flush = () => {
+    if (items.length === 0) return
+    const tag = ordered ? 'ol' : 'ul'
+    const cls = ordered
+      ? 'list-decimal list-outside ml-5 my-2 space-y-1 marker:text-slate-500'
+      : 'list-disc list-outside ml-5 my-2 space-y-1 marker:text-slate-500'
+    result.push(`<${tag} class="${cls}">${items.map((i) => `<li>${i}</li>`).join('')}</${tag}>`)
+    items = []
+  }
+
+  for (const line of lines) {
+    const ulMatch = line.match(/^\s*[-*+]\s+(.+)$/)
+    const olMatch = line.match(/^\s*\d+[.)]\s+(.+)$/)
+
+    if (ulMatch) {
+      if (items.length && ordered) flush()
+      ordered = false
+      items.push(ulMatch[1])
+      continue
+    }
+    if (olMatch) {
+      if (items.length && !ordered) flush()
+      ordered = true
+      items.push(olMatch[1])
+      continue
+    }
+
+    flush()
+    result.push(line)
+  }
+  flush()
+
+  return result.join('\n')
 }
 
 function parseTables(text: string): string {
@@ -94,15 +139,21 @@ function parseTables(text: string): string {
   return result.join('\n')
 }
 
-export default function MessageBubble({ message, onFollowUp }: Props) {
+export default function MessageBubble({ message, onFollowUp, isStreaming, textEndRef }: Props) {
   if (message.role === 'user') {
     return (
-      <div className="flex justify-end msg-enter">
+      <div className="flex justify-end items-start gap-3 msg-enter">
         <div
           className="text-white rounded-2xl rounded-br-sm px-4 py-3 text-sm max-w-[78%] leading-relaxed"
-          style={{ background: 'linear-gradient(135deg,#2563eb,#4f46e5)', boxShadow: '0 4px 24px rgba(99,102,241,0.2)' }}
+          style={{ background: 'linear-gradient(135deg,#2563eb,#4f46e5)', boxShadow: '0 4px 24px rgba(99,102,241,0.22)' }}
         >
           {message.content}
+        </div>
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px] font-bold text-slate-300"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          You
         </div>
       </div>
     )
@@ -110,18 +161,24 @@ export default function MessageBubble({ message, onFollowUp }: Props) {
 
   return (
     <div className="flex items-start gap-3 msg-enter">
-      <div
-        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-        style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)', flexShrink: 0 }}
-      >
-        <Sparkles size={14} className="text-white" />
+      <div className="relative w-8 h-8 flex-shrink-0 mt-0.5">
+        {isStreaming && (
+          <div className="absolute inset-0 rounded-xl opacity-70 blur-sm animate-pulse" style={{ background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)' }} />
+        )}
+        <div
+          className="relative w-8 h-8 rounded-xl flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}
+        >
+          <Sparkles size={14} className="text-white" />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 flex-1 min-w-0">
         <div
-          className="rounded-2xl rounded-tl-sm px-4 py-3.5 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap"
-          style={{ background: 'rgba(15,31,53,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}
-          dangerouslySetInnerHTML={{ __html: parseHeaders(parseTables(parseEmojis(parseBold(message.content)))) }}
+          ref={textEndRef}
+          className={`rounded-2xl rounded-tl-sm px-4 py-3.5 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap ${isStreaming ? 'stream-cursor' : ''}`}
+          style={{ background: 'rgba(15,25,45,0.75)', border: '1px solid rgba(255,255,255,0.08)' }}
+          dangerouslySetInnerHTML={{ __html: parseHeaders(parseLists(parseTables(parseEmojis(parseBold(message.content))))) }}
         />
 
         {message.results && message.results.length > 0 && (

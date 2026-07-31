@@ -7,8 +7,7 @@ Rows: 346,018 | Collection: `procureiq.purchase_orders`
 
 | Field | Type | Notes |
 |---|---|---|
-| `creation_date` | datetime | PO creation date, no nulls |
-| `purchase_date` | datetime | actual purchase date, ~5% null |
+| `creation_date` | datetime | PO creation date, no nulls — the only date field kept, used for all date/quarter grouping |
 | `fiscal_year` | string | e.g. "2013-2014" — only 3 distinct years in this dataset, good for quarter/year filters |
 | `purchase_order_number` | string | unique PO identifier |
 | `department_name` | string | 111 distinct departments — good for "which department spent most" queries |
@@ -21,5 +20,7 @@ Rows: 346,018 | Collection: `procureiq.purchase_orders`
 
 ## Dropped columns (not loaded to MongoDB)
 
-`lpa_number`, `sub_acquisition_type`, `sub_acquisition_method`, `calcard`, `item_commodity_code`, `normalized_unspsc`, `commodity_title`, `class`, `class_title`, `family`, `family_title`, `segment`, `segment_title`, `location`, `supplier_qualifications` — removed to stay within Atlas M0 storage limit.
+`lpa_number`, `sub_acquisition_type`, `sub_acquisition_method`, `calcard`, `item_commodity_code`, `normalized_unspsc`, `commodity_title`, `class`, `class_title`, `family`, `family_title`, `segment`, `segment_title`, `location`, `supplier_qualifications`, `purchase_date`, `requisition_number`, `supplier_zip_code`, `supplier_code`, `classification_codes` — removed to stay within Atlas M0 storage limit.
+
+`purchase_date` and `supplier_code` were dropped after this doc was first written; `SCHEMA_DESCRIPTION` in `backend/agent/prompts.py` (the LLM-facing schema) is kept in sync with `DROP_COLUMNS` in `backend/data/load_to_mongo.py` — if you change one, change both.
 
